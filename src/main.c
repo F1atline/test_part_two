@@ -18,6 +18,8 @@ Purpose : Generic application start
 
 #include "gpio.h"
 
+#include "timer.h"
+
 extern PORT *PORTE;
 
 void clock_config()
@@ -68,11 +70,9 @@ int main(void) {
 
   gpio_init();
 
+  timer_init();
+
   for(;;) {
-  PORTE->B13 = 1;
-  for(int i = 0; i < 1000000; i++);
-  PORTE->B13 = 0;
-  for(int i = 0; i < 1000000; i++);
   }
 }
 

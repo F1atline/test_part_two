@@ -14,10 +14,14 @@ volatile PORT *PORTE = (volatile PORT *) GPIOE;
 
 void gpio_init()
 {
+  //enable RCC for PORTE
   SET_BIT(RCC->AHBENR, RCC_AHBENR_GPIOEEN);
-  
+  //reset out
   PORTE->BS13 = 1;
+  //medium speed
   PORTE->OSPEED13 = 1;
+  //no pull down
   PORTE->PUPD13 = 0;
+  //out mode
   PORTE->MOD13 = 1;
 }
