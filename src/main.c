@@ -52,7 +52,6 @@ void clock_config()
   MODIFY_REG(RCC->CFGR, RCC_CFGR_SW, RCC_CFGR_SW_PLL);
   //white system clock
   while(((uint32_t)(READ_BIT(RCC->CFGR, RCC_CFGR_SWS))) != RCC_CFGR_SWS_PLL);
-  printf("complite RCC initialization\n");
 }
 
 /*********************************************************************
@@ -67,11 +66,11 @@ int main(void) {
   printf("reset\n");
   //call RCC configuration
   clock_config();
-
+  printf("complite RCC initialization\n");
   gpio_init();
-
+  printf("complite GPIO initialization\n");
   timer_init();
-
+  printf("complite timers initialization\n");
   for(;;) {
   }
 }
