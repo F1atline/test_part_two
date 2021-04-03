@@ -16,6 +16,10 @@ Purpose : Generic application start
 #include "stm32f3xx.h"
 #include "main.h"
 
+#include "gpio.h"
+
+extern PORT *PORTE;
+
 void clock_config()
 {
   //set FLASH latency
@@ -62,7 +66,13 @@ int main(void) {
   //call RCC configuration
   clock_config();
 
+  gpio_init();
+
   for(;;) {
+  PORTE->B13 = 1;
+  for(int i = 0; i < 1000000; i++);
+  PORTE->B13 = 0;
+  for(int i = 0; i < 1000000; i++);
   }
 }
 
