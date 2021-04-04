@@ -20,6 +20,8 @@ Purpose : Generic application start
 
 #include "timer.h"
 
+#include "adc.h"
+
 extern PORT *PORTE;
 
 void clock_config()
@@ -61,7 +63,7 @@ void clock_config()
 *  Function description
 *   Application entry point.
 */
-int main(void) {
+ int main(void) {
 
   printf("reset\n");
   //call RCC configuration
@@ -71,6 +73,8 @@ int main(void) {
   printf("complite GPIO initialization\n");
   timer_init();
   printf("complite timers initialization\n");
+  ADC_init();
+  printf("complite ADC initialization\n");
   for(;;) {
   }
 }
