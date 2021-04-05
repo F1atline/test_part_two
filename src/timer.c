@@ -17,8 +17,8 @@ extern PORT *PORTE;
 
 void timer_init()
 {
-    //enable RCC for TIM2
-  RCC->APB1ENR |= RCC_APB1ENR_TIM2EN;
+    //enable RCC for TIM1
+  RCC->APB2ENR |= RCC_APB2ENR_TIM1EN;
   if(READ_BIT(RCC->APB2ENR, RCC_APB2ENR_TIM1EN) == RCC_APB2ENR_TIM1EN)
   {
     printf("TIM1 Enabled\n");

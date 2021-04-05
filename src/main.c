@@ -23,6 +23,8 @@ Purpose : Generic application start
 #include "adc.h"
 
 extern PORT *PORTE;
+uint16_t BUFF[32];
+bool data_ready = false;
 
 void clock_config()
 {
@@ -64,7 +66,7 @@ void clock_config()
 *   Application entry point.
 */
  int main(void) {
-
+  float temperature = 0;
   printf("reset\n");
   //call RCC configuration
   clock_config();
@@ -75,8 +77,27 @@ void clock_config()
   printf("complite timers initialization\n");
   ADC_init();
   printf("complite ADC initialization\n");
+  NVIC_EnableIRQ(DMA1_Channel1_IRQn);
   for(;;) {
+    if(data_ready)
+    {
+      uint32_t tmp_val;
+      for(uint32_t i = 0; i<32; i++)
+      {
+        tmp_val += (uint32_t)BUFF[i];
+      }
+      temperature = ((V25 - (tmp_val/32)) / AVG_SLOPE) + 25;
+      printf("%f\n", temperature);
+      data_ready = false;
+    }
   }
 }
 
 /*************************** End of file ****************************/
+void DMA1_CH1_IRQHandler(void)
+{
+  if(READ_BIT(DMA1->ISR, DMA_ISR_TCIF1))
+  {
+    data_ready = true;
+  }
+}
