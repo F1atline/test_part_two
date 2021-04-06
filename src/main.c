@@ -22,6 +22,9 @@ Purpose : Generic application start
 
 #include "adc.h"
 
+#include "stm32f3xx_ll_usart.h"
+#include "stm32f3xx_ll_utils.h"
+
 extern PORT *PORTE;
 uint16_t BUFF[32];
 bool data_ready = false;
@@ -33,8 +36,19 @@ struct packet
   uint8_t type;
   uint8_t lenth;
   uint8_t data[256];
-};
+} packet_t;
 
+struct state
+{
+  bool ready;
+  bool transmited;
+  uint8_t header_cnt;
+} state_t;
+
+packet_t message = {0};
+state_t state = {0};
+
+//Poly  : 0x31    x^8 + x^5 + x^4 + 1
 uint8_t Crc8Table[256] = {
     0x00, 0x31, 0x62, 0x53, 0xC4, 0xF5, 0xA6, 0x97,
     0xB9, 0x88, 0xDB, 0xEA, 0x7D, 0x4C, 0x1F, 0x2E,
@@ -72,12 +86,79 @@ uint8_t Crc8Table[256] = {
 
 uint8_t CRC8(uint8_t *pcBlock, uint16_t len)
 {
-    unsigned char crc = 0xFF;
+    uint8_t crc = 0xFF;
 
     while (len--)
         crc = Crc8Table[crc ^ *pcBlock++];
 
     return crc;
+}
+
+void UART_init()
+{
+  //enable usart clock
+  RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
+  //enable irq dma1
+  NVIC_EnableIRQ(DMA1_Channel4_IRQn); //tx
+  NVIC_EnableIRQ(DMA1_Channel5_IRQn); //rx
+
+  //DMA for TX
+  LL_DMA_SetDataTransferDirection(DMA1, LL_DMA_CHANNEL_4, LL_DMA_DIRECTION_MEMORY_TO_PERIPH);
+  LL_DMA_SetChannelPriorityLevel(DMA1, LL_DMA_CHANNEL_4, LL_DMA_PRIORITY_LOW);
+  LL_DMA_SetMode(DMA1, LL_DMA_CHANNEL_4, LL_DMA_MODE_NORMAL);
+  LL_DMA_SetPeriphIncMode(DMA1, LL_DMA_CHANNEL_4, LL_DMA_PERIPH_NOINCREMENT);
+  LL_DMA_SetMemoryIncMode(DMA1, LL_DMA_CHANNEL_4, LL_DMA_MEMORY_INCREMENT);
+  LL_DMA_SetPeriphSize(DMA1, LL_DMA_CHANNEL_4, LL_DMA_PDATAALIGN_BYTE);
+  LL_DMA_SetMemorySize(DMA1, LL_DMA_CHANNEL_4, LL_DMA_MDATAALIGN_BYTE);
+
+  LL_DMA_SetPeriphAddress(DMA1, LL_DMA_CHANNEL_4, (uint32_t)&USART1->DR);
+
+  //DMA for RX
+  LL_DMA_SetDataTransferDirection(DMA1, LL_DMA_CHANNEL_5, LL_DMA_DIRECTION_PERIPH_TO_MEMORY);
+  LL_DMA_SetChannelPriorityLevel(DMA1, LL_DMA_CHANNEL_5, LL_DMA_PRIORITY_LOW);
+  LL_DMA_SetMode(DMA1, LL_DMA_CHANNEL_5, LL_DMA_MODE_NORMAL);
+  LL_DMA_SetPeriphIncMode(DMA1, LL_DMA_CHANNEL_5, LL_DMA_PERIPH_NOINCREMENT);
+  LL_DMA_SetMemoryIncMode(DMA1, LL_DMA_CHANNEL_5, LL_DMA_MEMORY_INCREMENT);
+  LL_DMA_SetPeriphSize(DMA1, LL_DMA_CHANNEL_5, LL_DMA_PDATAALIGN_BYTE);
+  LL_DMA_SetMemorySize(DMA1, LL_DMA_CHANNEL_5, LL_DMA_MDATAALIGN_BYTE);
+
+  //init USART with requred settings
+  USART_InitStruct.BaudRate = 460800;
+  USART_InitStruct.DataWidth = LL_USART_DATAWIDTH_8B;
+  USART_InitStruct.StopBits = LL_USART_STOPBITS_1;
+  USART_InitStruct.Parity = LL_USART_PARITY_NONE;
+  USART_InitStruct.TransferDirection = LL_USART_DIRECTION_TX_RX;
+  USART_InitStruct.HardwareFlowControl = LL_USART_HWCONTROL_NONE;
+  USART_InitStruct.OverSampling = LL_USART_OVERSAMPLING_16;
+  LL_USART_Init(USART1, &USART_InitStruct);
+  LL_USART_DisableIT_CTS(USART1);
+  LL_USART_ConfigAsyncMode(USART1);
+  LL_USART_Enable(USART1);
+
+  NVIC_EnableIRQ(USART1_IRQn);
+}
+
+
+uart_process_packet(packet_t* packet)
+{
+  if(packet->lenth > 0)
+  {
+    if(CRC8(&packet->pre, (packet->lenth + 1) + 4) == 0) //if CRC calc with CRC from packet this mean that message correct
+    {
+      //set bit
+      packet->type |= 0x80;
+      //calc new CRC
+      packet->data[lenth+1] = CRC8(&packet->pre, (packet->lenth + 4));
+      //start dma for TX
+      LL_DMA_SetMemoryAddress(DMA1, LL_DMA_CHANNEL_4, (uint32_t)&packet->pre);
+      LL_DMA_SetDataLength(DMA1, LL_DMA_CHANNEL_4, (packet->lenth + 1) + 4));
+      LL_USART_EnableDMAReq_TX(USART1);
+    }
+    else
+    {
+      //abort message and send NACK;
+    }
+  }
 }
 
 void clock_config()
@@ -133,6 +214,7 @@ void clock_config()
   printf("complite ADC initialization\n");
   NVIC_EnableIRQ(DMA1_Channel1_IRQn);
 
+  UART_init();
   for(;;) {
     if(data_ready)
     {
@@ -145,6 +227,14 @@ void clock_config()
       printf("%f\n", temperature);
       data_ready = false;
     }
+    if(state->ready)
+    {
+      //set transmit false
+      state->transmited = false;
+      state->data_ready = false;
+      //parse message
+      uart_process_packet(&message);
+    }
   }
 }
 
@@ -152,7 +242,72 @@ void DMA1_CH1_IRQHandler(void)
 {
   if(READ_BIT(DMA1->ISR, DMA_ISR_TCIF1))
   {
-    data_ready = true;
+    state->data_ready = true;
+  }
+}
+
+void DMA1_CH4_IRQHandler(void)
+{
+  //transmit cmplt msg
+  if(READ_BIT(DMA1->ISR, DMA_ISR_TCIF4))
+  {
+    printf("MSG %d transmitted\n", message->cnt);
+    //clear
+    memset(&message, 0, sizeof(packet_t));
+    state->transmited = true;
+  }
+}
+
+void DMA1_CH5_IRQHandler(void)
+{
+  //transmit cmplt msg
+  if(READ_BIT(DMA1->ISR, DMA_ISR_TCIF5))
+  {
+    printf("MSG %d recived\n", message->cnt);
+    //mark for handle message;
+    state->ready = true;
+  }
+}
+
+void USART1_IRQHandler(void)
+{
+  if(READ_BIT(USART1->ISR, USART_ISR_RXNE))
+  {
+    switch(state->header_cnt)
+    {
+      case 0:
+        message->pre = USART1->DR;
+        state->header_cnt++;
+        break;
+      case 1:
+        message->cnt = USART1->DR;
+        state->header_cnt++;
+        break;
+      case 2:
+        message->type = USART1->DR;
+        state->header_cnt++;
+        break;
+      case 3:
+        message->lenth = USART1->DR;
+        state->header_cnt++;
+        break;
+      case 4:
+        LL_DMA_SetMemoryAddress(DMA1, LL_DMA_CHANNEL_5, (uint32_t)&packet->pre);
+        LL_DMA_SetDataLength(DMA1, LL_DMA_CHANNEL_5, (packet->lenth + 1));
+        LL_USART_EnableDMAReq_RX(USART1);
+        USART1->CR1 &= ~USART_CR_RXNEIE;
+        state->header_cnt = 0;
+        break;
+    }
+    
+  }
+
+  if(READ_BIT(USART1->ISR, USART_ISR_IDLE))
+  {
+    //abort recive
+    //enable
+    USART1->CR1 |= USART_CR_RXNEIE;
+    state->header_cnt=0;
   }
 }
 /*************************** End of file ****************************/
