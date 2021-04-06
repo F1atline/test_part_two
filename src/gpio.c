@@ -54,7 +54,7 @@ void gpio_init()
   PORTC->PUPD4 = 0;
   //AF
   PORTC->MOD4 = 2;
-  //
+  //AF7 select TX
   PORTC->AFR4 = 7;
 
  
@@ -65,6 +65,6 @@ void gpio_init()
   PORTC->PUPD5 = 0;
   //AF
   PORTC->MOD5 = 2;
-  //
+  //AF7 select RX
   PORTC->AFR5 = 7;
 }
