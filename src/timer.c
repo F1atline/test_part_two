@@ -17,22 +17,20 @@ extern PORT *PORTE;
 
 void timer_init()
 {
-    //enable RCC for TIM1
-  RCC->APB2ENR |= RCC_APB2ENR_TIM1EN;
-  if(READ_BIT(RCC->APB2ENR, RCC_APB2ENR_TIM1EN) == RCC_APB2ENR_TIM1EN)
+  //enable RCC for TIM15
+  RCC->APB2ENR |= RCC_APB2ENR_TIM15EN;
+  if(READ_BIT(RCC->APB2ENR, RCC_APB2ENR_TIM15EN) == RCC_APB2ENR_TIM15EN)
   {
-    printf("TIM1 Enabled\n");
+   printf("TIM15 Enabled\n");
   }
   //set prescaller
-  TIM1->PSC = 48-1;
+  TIM15->PSC = 48-1;
   //ser reload value
-  TIM1->ARR  = 10000 - 1;
+  TIM15->ARR  = 10000 - 1;
   //TRGO for ADC
-  TIM1->CR2 |= TIM_CR2_MMS_1;
-  //enable update interrupt
-  TIM1->DIER |= TIM_DIER_UDE;
+  TIM15->CR2 |= TIM_CR2_MMS_1;
   //start timer
-  TIM1->CR1 |= TIM_CR1_CEN;
+  TIM15->CR1 |= TIM_CR1_CEN;
 
   //enable RCC for TIM2
   RCC->APB1ENR |= RCC_APB1ENR_TIM2EN;

@@ -78,6 +78,7 @@ void clock_config()
   ADC_init();
   printf("complite ADC initialization\n");
   NVIC_EnableIRQ(DMA1_Channel1_IRQn);
+
   for(;;) {
     if(data_ready)
     {
@@ -93,7 +94,6 @@ void clock_config()
   }
 }
 
-/*************************** End of file ****************************/
 void DMA1_CH1_IRQHandler(void)
 {
   if(READ_BIT(DMA1->ISR, DMA_ISR_TCIF1))
@@ -101,3 +101,4 @@ void DMA1_CH1_IRQHandler(void)
     data_ready = true;
   }
 }
+/*************************** End of file ****************************/
