@@ -11,6 +11,7 @@
 #include "gpio.h"
 
 volatile PORT *PORTE = (volatile PORT *) GPIOE;
+volatile PORT *PORTE = (volatile PORT *) GPIOC;
 
 void gpio_init()
 {
@@ -42,4 +43,28 @@ void gpio_init()
   PORTE->PUPD11 = 0;
   //out mode
   PORTE->MOD11 = 1;
+
+  //enable clock for PORTC
+  SET_BIT(RCC->AHBENR, RCC_AHBENR_GPIOCEN);
+
+  //TX
+  //fast speed
+  PORTC->OSPEED4 = 3; 
+  //no pull down
+  PORTC->PUPD4 = 0;
+  //AF
+  PORTC->MOD4 = 2;
+  //
+  PORTC->AFR4 = 7;
+
+ 
+  //RX
+  //fast speed
+  PORTC->OSPEED5 = 3; 
+  //no pull down
+  PORTC->PUPD5 = 0;
+  //AF
+  PORTC->MOD5 = 2;
+  //
+  PORTC->AFR5 = 7;
 }
